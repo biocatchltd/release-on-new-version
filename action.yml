@@ -1,0 +1,80 @@
+# https://help.github.com/en/articles/metadata-syntax-for-github-actions
+name: 'Create Release on New Version'
+author: 'Biocatch'
+description: 'Will automatically create a github release when an unreleased version is detected'
+inputs:
+  token:
+    description: 'The github token'
+    required: false
+    default: ${{ github.token }}
+  pyproject-path:
+    description: 'The path to the pyproject.toml file'
+    required: false
+    default: 'pyproject.toml'
+  changelog-path:
+    description: 'The path to the changelog file'
+    required: false
+    default: 'CHANGELOG.md'
+outputs:
+  is-released:
+    description: 'Whether the version was released by this action'
+    value: ${{ steps.check-if-tag-exists.outputs.is-new }}
+  found-version:
+    description: 'The found version'
+    value: ${{ steps.fetch-version.outputs.found-version }}
+  release-notes:
+    description: 'The release notes of the version'
+    value: ${{ steps.get-release-notes.outputs.release-notes }}
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-tags: true
+    
+    - name: Fetch current version
+      id: fetch-version
+      shell: bash
+      run: |
+        PUSHED_VERSION="$(cat ${{ inputs.pyproject-path }} | grep -E '^version' | cut -d '"' -f 2)"
+        echo "found-version=$PUSHED_VERSION" >> $GITHUB_OUTPUT
+        echo "Detection version from \`pyproject.toml\`: \`$PUSHED_VERSION\`" >> $GITHUB_STEP_SUMMARY 
+
+    - name: check if tag exists
+      id: check-if-tag-exists
+      env:
+        PUSHED_VERSION: ${{ steps.fetch-version.outputs.found-version }}
+      run: |
+        if [ $(git tag -l $PUSHED_VERSION) ]; then
+            echo "Tag \"$PUSHED_VERSION\" already exists" >> $GITHUB_STEP_SUMMARY
+            echo "is-released=false" >> $GITHUB_OUTPUT
+        else
+            echo "Tag \"$PUSHED_VERSION\" does not exist" >> $GITHUB_STEP_SUMMARY
+            echo "is-released=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: get the release notes
+      id: get-release-notes
+      if: steps.check-if-tag-exists.outputs.is-released == 'true'
+      run: |
+        RELEASE_NOTES="$(awk '/^## / {if (!found) found=1; else exit} found' ${{ inputs.changelog-path }})"
+        # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
+        {
+            echo "release-notes<<EOF"
+            echo "$RELEASE_NOTES"
+            echo "EOF"
+        } >> $GITHUB_OUTPUT
+        echo "$RELEASE_NOTES" >> $GITHUB_STEP_SUMMARY
+    
+    - name: create a new release
+      if: steps.check-if-tag-exists.outputs.is-released == 'true'
+      uses: softprops/action-gh-release@v2
+      env:
+        PUSHED_VERSION: ${{ steps.fetch-version.outputs.found-version }}
+      with:
+        body: ${{ steps.get-release-notes.outputs.release-notes }}
+        tag_name: ${{ steps.fetch-version.outputs.found-version }}
+        target_commitish: ${{ github.sha }}
+        make_latest: ${{ !contains(steps.fetch-version.outputs.found-version, '+')}}
+        token: ${{ inputs.token }}
