@@ -51,7 +51,9 @@ runs:
             echo "Tag \"$PUSHED_VERSION\" already exists" >> $GITHUB_STEP_SUMMARY
             echo "is-released=false" >> $GITHUB_OUTPUT
         else
-            echo "Tag \"$PUSHED_VERSION\" does not exist" >> $GITHUB_STEP_SUMMARY
+            echo "Tag \"$PUSHED_VERSION\" does not exist.\n" >> $GITHUB_STEP_SUMMARY
+            echo "Checked the following tags:"
+            git tag -l >> $GITHUB_STEP_SUMMARY
             echo "is-released=true" >> $GITHUB_OUTPUT
         fi
 
