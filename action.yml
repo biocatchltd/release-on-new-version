@@ -31,7 +31,7 @@ runs:
     - name: Checkout
       uses: actions/checkout@v4
       with:
-        fetch-tags: true
+        fetch-depth: 0
     
     - name: Fetch current version
       id: fetch-version
@@ -51,7 +51,7 @@ runs:
             echo "Tag \"$PUSHED_VERSION\" already exists" >> $GITHUB_STEP_SUMMARY
             echo "is-released=false" >> $GITHUB_OUTPUT
         else
-            echo "Tag \"$PUSHED_VERSION\" does not exist.\n" >> $GITHUB_STEP_SUMMARY
+            echo "Tag \"$PUSHED_VERSION\" does not exist." >> $GITHUB_STEP_SUMMARY
             echo "Checked the following tags:"
             git tag -l >> $GITHUB_STEP_SUMMARY
             echo "is-released=true" >> $GITHUB_OUTPUT
