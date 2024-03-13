@@ -43,6 +43,7 @@ runs:
 
     - name: check if tag exists
       id: check-if-tag-exists
+      shell: bash
       env:
         PUSHED_VERSION: ${{ steps.fetch-version.outputs.found-version }}
       run: |
@@ -56,6 +57,7 @@ runs:
 
     - name: get the release notes
       id: get-release-notes
+      shell: bash
       if: steps.check-if-tag-exists.outputs.is-released == 'true'
       run: |
         RELEASE_NOTES="$(awk '/^## / {if (!found) found=1; else exit} found' ${{ inputs.changelog-path }})"
