@@ -25,6 +25,9 @@ outputs:
   release-notes:
     description: 'The release notes of the version'
     value: ${{ steps.get-release-notes.outputs.release-notes }}
+  is-prerelease:
+    description: 'whether or not the version was detected as pre-release'
+    value: ${{ steps.detect-prerelease.outputs.is-prerelease }}
 runs:
   using: "composite"
   steps:
@@ -71,6 +74,14 @@ runs:
         } >> $GITHUB_OUTPUT
         echo "$RELEASE_NOTES" >> $GITHUB_STEP_SUMMARY
     
+    - name: detect-prerelease
+      id: create-release
+      shell: bash
+      if: steps.check-if-tag-exists.outputs.is-released == 'true'
+      run: |
+        IS_PRERELEASE=${{ !contains(steps.fetch-version.outputs.found-version, '-')}}
+        echo "is-prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+    
     - name: create a new release
       if: steps.check-if-tag-exists.outputs.is-released == 'true'
       uses: softprops/action-gh-release@v2
@@ -80,5 +91,5 @@ runs:
         body: ${{ steps.get-release-notes.outputs.release-notes }}
         tag_name: ${{ steps.fetch-version.outputs.found-version }}
         target_commitish: ${{ github.sha }}
-        make_latest: ${{ !contains(steps.fetch-version.outputs.found-version, '+')}}
+        prerelease: ${{ steps.detect-prerelease.outputs.is-prerelease }}
         token: ${{ inputs.token }}
